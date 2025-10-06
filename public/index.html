@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+
+<body class="bg-light">
+    <div class="container mt-5">
+        <h2 class="text-center mb-4">Expense Tracker</h2>
+
+        <form id="expense-form">
+            <div class="mb-3">
+                <label for="amount" class="form-label">Expense Amount:</label>
+                <input type="number" id="amount" name="amount" class="form-control" required />
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description:</label>
+                <input type="text" id="description" name="description" class="form-control" required />
+            </div>
+
+            <div class="mb-3">
+                <label for="category" class="form-label">Category:</label>
+                <select name="category" id="category" class="form-select" required>
+                    <option value="">-- Select --</option>
+                    <option value="fuel">Fuel</option>
+                    <option value="movie">Movie</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Add Expense</button>
+        </form>
+
+        <ul class="list-group mt-4" id="expenseList"></ul>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const form = document.getElementById('expense-form');
+        const expenseList = document.getElementById('expenseList');
+        let editingId = null;
+
+        // Fetch all expenses from the backend
+        async function getExpense() {
+            try {
+                const res = await axios.get('/expense');
+                const expenses = res.data;
+
+                expenseList.innerHTML = '';
+
+                expenses.forEach(expenseItem => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                    li.innerHTML = `
+            <div>
+              <strong>₹${expenseItem.amount}</strong> - ${expenseItem.description} (${expenseItem.category})
+            </div>
+            <div>
+              <button class="btn btn-sm btn-danger me-2" onclick="deleteExpense(${expenseItem.id})">Delete</button>
+              <button class="btn btn-sm btn-warning" onclick="editExpense(${expenseItem.id}, '${expenseItem.amount}', '${expenseItem.description}', '${expenseItem.category}')">Edit</button>
+            </div>
+          `;
+
+                    expenseList.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Error fetching Expenses:', err);
+            }
+        }
+
+        // Submit form (Create or Update)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const amount = document.getElementById('amount').value;
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+
+            try {
+                if (editingId) {
+                    // Update existing expense
+                    await axios.put(`/expense/${editingId}`, {
+                        amount,
+                        description,
+                        category
+                    });
+                    editingId = null;
+                    form.querySelector('button').innerText = 'Add Expense';
+                } else {
+                    // Add new expense
+                    await axios.post('/expense', {
+                        amount,
+                        description,
+                        category
+                    });
+                }
+
+                form.reset();
+                getExpense();
+            } catch (err) {
+                console.error('Error saving expense:', err);
+            }
+        });
+
+        // Delete expense
+        async function deleteExpense(id) {
+            try {
+                await axios.delete(`/expense/${id}`);
+                getExpense();
+            } catch (err) {
+                console.error('Error deleting expense:', err);
+            }
+        }
+
+        // Edit expense (pre-fill form)
+        function editExpense(id, amount, description, category) {
+            document.getElementById('amount').value = amount;
+            document.getElementById('description').value = description;
+            document.getElementById('category').value = category;
+
+            editingId = id;
+            form.querySelector('button').innerText = 'Update Expense';
+        }
+
+        // Initial load
+        getExpense();
+    </script>
+</body>
+
+</html>
